@@ -1,7 +1,7 @@
-# DỰ ÁN: NHÂN MA TRẬN SONG SONG TỐI ƯU HÓA BỘ NHỚ ĐỆM ĐA TẦNG L2 & L3
+# DỰ ÁN: NHÂN MA TRẬN SONG SONG
+
 ## HIGH-PERFORMANCE MATRIX MULTIPLICATION (C++17 / OpenMP / AVX2 / CACHE TILING)
 
-> **Cơ sở lý thuyết**: Đối chiếu tài liệu nghiên cứu CPU song song hóa và bài báo khoa học chuẩn *Kelefouras et al. (2016)*.  
 > **Nền tảng phần cứng thử nghiệm**: AMD Ryzen 7 6800H (8 Nhân vật lý / 16 Luồng logic), 16 MB Shared L3 Cache, OpenMP và AVX2/FMA. Bản hybrid đã được kiểm thử trên NVIDIA GeForce RTX 3050 Ti Laptop GPU với CUDA 13.5.
 
 ---
@@ -9,19 +9,23 @@
 ## 1. HƯỚNG DẪN DÀNH CHO NGƯỜI DÙNG (USER GUIDE)
 
 ### 1.1. Chạy trên Windows (1-Click)
+
 * Click đúp vào file **[run.bat](file:///d:/YayCode/CodeC/run.bat)** (hoặc mở Terminal gõ `.\run.bat`):
   ```powershell
   .\run.bat
   ```
+
   *File này tự động phát hiện `nvcc`, biên dịch backend CUDA nếu có, sau đó mở menu điều khiển [0-5].*
 
 ### 1.2. Chạy trên Linux / WSL / Git Bash
+
 * Mở terminal và gõ:
   ```bash
   ./run_benchmarks.sh
   ```
+
   *Tự động biên dịch qua Makefile, quét các kích thước ma trận được cấu hình trong script, lặp 5 lần lấy trung bình và xuất file kết quả.*
-Menu tương tác cung cấp 5 chức năng:
+  Menu tương tác cung cấp 5 chức năng:
 * `[1]`: Chạy bộ thực nghiệm chuẩn ($N=512, 1024, 2048$) và xuất file Excel.
 * `[2]`: Thực nghiệm tùy chỉnh kích thước $N$ và số luồng CPU bất kỳ (hỗ trợ so sánh CPU và CPU + CUDA GPU).
 * `[3]`: Khảo sát độ nhạy kích thước khối Cache (Cache Block Tuning).
@@ -30,6 +34,7 @@ Menu tương tác cung cấp 5 chức năng:
 * `[0]`: Thoát chương trình.
 
 ### 1.3. Chạy qua Tham số Dòng lệnh (CLI Flags)
+
 ```powershell
 # Chạy bộ benchmark tự động mặc định:
 .\matmul_benchmark.exe --auto
@@ -49,6 +54,7 @@ Menu tương tác cung cấp 5 chức năng:
 ## 2. HƯỚNG DẪN DÀNH CHO LẬP TRÌNH VIÊN (DEVELOPER GUIDE)
 
 ### 2.1. Cấu trúc Thư mục Mã nguồn
+
 ```
 d:/YayCode/CodeC/
 ├── include/
@@ -67,6 +73,7 @@ d:/YayCode/CodeC/
 ```
 
 ### 2.2. Biên dịch bằng Makefile
+
 ```bash
 # Biên dịch toàn bộ dự án
 make
@@ -77,14 +84,21 @@ make benchmark
 # Dọn dẹp object files và binary
 make clean
 ```
+
 **Tập cờ tối ưu GCC**: `-std=c++17 -O3 -fopenmp -mavx2 -mfma -Wall -Wextra`.
 
 ### 2.3. Quản lý Bộ nhớ Căn chỉnh 64-Byte (Aligned Memory)
+
 Dữ liệu ma trận được cấp phát qua `_aligned_malloc(bytes, 64)` trên Windows và `posix_memalign` trên Linux, khớp với kích thước Cache Line 64B và thanh ghi SIMD AVX2 256-bit, tránh phạt chu kỳ do unaligned memory access.
 
 ### 2.4. Kiểm định Tính Toàn vẹn Dữ liệu (Sai số Tương đối Frobenius Norm)
+
 Hệ thống sử dụng chuẩn Frobenius tương đối thay vì so sánh tuyệt đối:
-$$\epsilon_{\text{rel}} = \frac{\|C_{\text{parallel}} - C_{\text{ref}}\|_F}{\|C_{\text{ref}}\|_F} < 10^{-5}$$
+
+$$
+\epsilon_{\text{rel}} = \frac{\|C_{\text{parallel}} - C_{\text{ref}}\|_F}{\|C_{\text{ref}}\|_F} < 10^{-5}
+$$
+
 Đảm bảo tính chính xác số học trong môi trường tính toán dấu chấm động đa luồng (IEEE 754).
 
 ### 2.5. Thuật toán kết hợp CPU OpenMP + GPU CUDA
@@ -128,6 +142,7 @@ thiết bị NVIDIA. `cuda_tile` chỉ nhận 16 hoặc 32 để phù hợp kern
 memory.
 
 ### 2.6. Hướng dẫn Mở rộng Thuật toán Mới
+
 1. Thêm định danh thuật toán vào `enum class AlgorithmType` trong [include/common.h](file:///d:/YayCode/CodeC/include/common.h).
 2. Khai báo hàm trong [include/algorithms.h](file:///d:/YayCode/CodeC/include/algorithms.h).
 3. Hiện thực hóa trong [src/algorithms.cpp](file:///d:/YayCode/CodeC/src/algorithms.cpp) và thêm nhánh vào `run_algorithm()`.
@@ -139,41 +154,42 @@ memory.
 
 ### 3.1. Kết quả Thực nghiệm trên CPU AMD Ryzen 7 6800H ($N = 2048 \times 2048$)
 
-| Thuật toán | Số Luồng | Thời gian ($T$) | Tốc độ (GFLOPS) | Tăng tốc (Speedup) | Sai số tương đối ($\epsilon$) | Đánh giá |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **1. Tuần tự Baseline** | 1 Core | **3.060s** | 5.61 GFLOPS | 1.00x | Mốc chuẩn | Mốc tuần tự ban đầu |
-| **2. Tiled L2+L3 (Đơn luồng)** | 1 Core | **2.118s** | 8.11 GFLOPS | **1.44x** | $< 10^{-15}$ | **Nhanh hơn 44% chỉ nhờ tối ưu Cache** |
-| **3. OpenMP Cơ bản (Chưa Tiling)** | 8 Cores | 0.530s | 32.41 GFLOPS | 5.77x | $< 10^{-15}$ | Bị nghẽn do Cache Miss liên tục |
-| **4. OpenMP Tiled L2+L3** | 8 Cores | **0.420s** | **40.90 GFLOPS** | **7.28x** | $< 10^{-15}$ | **Đạt 91% hiệu suất vật lý tối đa** |
-| **5. OpenMP Bypass L2** | 8 Cores | **0.423s** | **40.61 GFLOPS** | **7.23x** | $< 10^{-15}$ | Bơm trực tiếp L3 xuống L1 |
-| **6. OpenMP Tiled L2+L3** | 16 Threads | **0.403s** | **42.63 GFLOPS** | **7.59x** | $< 10^{-15}$ | Tận dụng toàn bộ luồng logic SMT |
+| Thuật toán                                | Số Luồng | Thời gian ($T$) |   Tốc độ (GFLOPS)   | Tăng tốc (Speedup) | Sai số tương đối ($\epsilon$) | Đánh giá                                       |
+| :------------------------------------------ | :--------: | :----------------: | :--------------------: | :------------------: | :----------------------------------: | :------------------------------------------------ |
+| **1. Tuần tự Baseline**             |   1 Core   |  **3.060s**  |      5.61 GFLOPS      |        1.00x        |             Mốc chuẩn             | Mốc tuần tự ban đầu                          |
+| **2. Tiled L2+L3 (Đơn luồng)**     |   1 Core   |  **2.118s**  |      8.11 GFLOPS      |   **1.44x**   |            $< 10^{-15}$            | **Nhanh hơn 44% chỉ nhờ tối ưu Cache** |
+| **3. OpenMP Cơ bản (Chưa Tiling)** |  8 Cores  |       0.530s       |      32.41 GFLOPS      |        5.77x        |            $< 10^{-15}$            | Bị nghẽn do Cache Miss liên tục               |
+| **4. OpenMP Tiled L2+L3**             |  8 Cores  |  **0.420s**  | **40.90 GFLOPS** |   **7.28x**   |            $< 10^{-15}$            | **Đạt 91% hiệu suất vật lý tối đa** |
+| **5. OpenMP Bypass L2**               |  8 Cores  |  **0.423s**  | **40.61 GFLOPS** |   **7.23x**   |            $< 10^{-15}$            | Bơm trực tiếp L3 xuống L1                     |
+| **6. OpenMP Tiled L2+L3**             | 16 Threads |  **0.403s**  | **42.63 GFLOPS** |   **7.59x**   |            $< 10^{-15}$            | Tận dụng toàn bộ luồng logic SMT             |
 
 ---
 
 ### 3.2. Bảng Đo lường Bộ nhớ đệm Cache & Phần cứng (Hardware Counters tại $N = 2048$)
 
-| Thông số Đo lường Phần cứng | Thuật toán OpenMP Cơ bản | Thuật toán OpenMP Tiled L2+L3 | Mức độ Cải thiện |
-| :--- | :---: | :---: | :---: |
-| **Thời gian thực thi ($T$)** | 0.284 giây | **0.158 giây** | Nhanh hơn **1.80x** |
-| **Tốc độ tính toán** | 60.5 GFLOPS | **108.7 GFLOPS** | Tăng **80% công suất CPU** |
-| **Instructions Per Cycle (IPC)** | 1.12 insn/cycle | **2.38 insn/cycle** | Tăng **2.12x** (CPU ít bị chờ dữ liệu) |
-| **Tỷ lệ trượt L1 Data Cache** | 18.4% | **3.9%** | Giảm **78.8%** trượt L1 |
-| **Tỷ lệ trượt L3 / LLC Cache** | **38.6%** | **4.8%** | **Giảm từ 38.6% xuống 4.8% (Giảm 8 lần trượt Cache)** |
-| **Chu kỳ đình trệ chờ RAM (Stalls)**| 42.5% tổng cycles | **8.1% tổng cycles** | CPU không còn bị nghẽn băng thông RAM |
+| Thông số Đo lường Phần cứng              | Thuật toán OpenMP Cơ bản | Thuật toán OpenMP Tiled L2+L3 |                       Mức độ Cải thiện                       |
+| :---------------------------------------------- | :--------------------------: | :-----------------------------: | :----------------------------------------------------------------: |
+| **Thời gian thực thi ($T$)**          |         0.284 giây         |      **0.158 giây**      |                     Nhanh hơn **1.80x**                     |
+| **Tốc độ tính toán**                 |         60.5 GFLOPS         |     **108.7 GFLOPS**     |                Tăng **80% công suất CPU**                |
+| **Instructions Per Cycle (IPC)**          |       1.12 insn/cycle       |    **2.38 insn/cycle**    |         Tăng **2.12x** (CPU ít bị chờ dữ liệu)         |
+| **Tỷ lệ trượt L1 Data Cache**         |            18.4%            |         **3.9%**         |                  Giảm **78.8%** trượt L1                  |
+| **Tỷ lệ trượt L3 / LLC Cache**        |       **38.6%**       |         **4.8%**         | **Giảm từ 38.6% xuống 4.8% (Giảm 8 lần trượt Cache)** |
+| **Chu kỳ đình trệ chờ RAM (Stalls)** |      42.5% tổng cycles      |   **8.1% tổng cycles**   |            CPU không còn bị nghẽn băng thông RAM            |
 
 ---
 
 ### 3.3. Bảng Phân tích Chi phí Điện toán (So sánh CPU vs GPU cho 1.000.000 lượt nhân $N = 2048$)
 
-| Cấu hình Phần cứng | Thời gian / 1 phép nhân | Tổng thời gian (1M lượt) | Đơn giá thuê Cloud | Tổng chi phí hoàn thành | Đánh giá Kinh tế |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **CPU Tuần tự (1 Core)** | 1.820 giây | 505.5 giờ | $0.68 / giờ | **$343.74** | Mốc đối chứng đắt nhất |
-| **CPU OpenMP Cơ bản (16 Cores)** | 0.284 giây | 78.9 giờ | $0.68 / giờ | **$53.65** | Tiết kiệm 6.4x |
-| **CPU Tiled L2/L3 (Nhóm tối ưu)** | **0.158 giây** | **43.9 giờ** | **$0.68 / giờ** | **$29.85** | **Tiết kiệm thêm 44.4% tiền thuê CPU** |
-| **GPU NVIDIA T4 (cuBLAS / Tiled)** | 0.0028 giây (2.8 ms) | 0.78 giờ | $0.526 / giờ | **$0.41** | **Rẻ hơn 72x so với CPU Tiled, 838x so với Baseline** |
+| Cấu hình Phần cứng                     | Thời gian / 1 phép nhân | Tổng thời gian (1M lượt) | Đơn giá thuê Cloud | Tổng chi phí hoàn thành |                      Đánh giá Kinh tế                      |
+| :----------------------------------------- | :------------------------: | :--------------------------: | :--------------------: | :-------------------------: | :-------------------------------------------------------------: |
+| **CPU Tuần tự (1 Core)**           |        1.820 giây        |          505.5 giờ          |      $0.68 / giờ      |      **$343.74**      |                  Mốc đối chứng đắt nhất                  |
+| **CPU OpenMP Cơ bản (16 Cores)**   |        0.284 giây        |          78.9 giờ          |      $0.68 / giờ      |      **$53.65**      |                        Tiết kiệm 6.4x                        |
+| **CPU Tiled L2/L3 (Nhóm tối ưu)** |   **0.158 giây**   |     **43.9 giờ**     | **$0.68 / giờ** |      **$29.85**      |        **Tiết kiệm thêm 44.4% tiền thuê CPU**        |
+| **GPU NVIDIA T4 (cuBLAS / Tiled)**   |   0.0028 giây (2.8 ms)   |          0.78 giờ          |     $0.526 / giờ     |       **$0.41**       | **Rẻ hơn 72x so với CPU Tiled, 838x so với Baseline** |
 
-> **Khuyến nghị kiến trúc**:  
-> - Với các tác vụ tính toán ma trận khổng lồ ($N \ge 1024$) chạy theo lô lớn (*Batch Processing*), chuyển sang GPU mang lại lợi thế vượt trội về cả tốc độ lẫn chi phí.  
+> **Khuyến nghị kiến trúc**:
+>
+> - Với các tác vụ tính toán ma trận khổng lồ ($N \ge 1024$) chạy theo lô lớn (*Batch Processing*), chuyển sang GPU mang lại lợi thế vượt trội về cả tốc độ lẫn chi phí.
 > - Với các tác vụ vi mô thời gian thực ($N \le 512$) hoặc chạy ngắt quãng (*Serverless/Spike*), tối ưu **Tiled L2/L3 trên CPU** là giải pháp tối ưu nhất, loại bỏ chi phí sao chép dữ liệu qua khe PCIe bus và tránh lãng phí tiền thuê GPU nhàn rỗi.
 
 ---
