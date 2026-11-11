@@ -2,7 +2,7 @@
 ## HIGH-PERFORMANCE MATRIX MULTIPLICATION (C++17 / OpenMP / AVX2 / CACHE TILING)
 
 > **Cơ sở lý thuyết**: Đối chiếu tài liệu nghiên cứu CPU song song hóa và bài báo khoa học chuẩn *Kelefouras et al. (2016)*.  
-> **Nền tảng phần cứng thử nghiệm**: AMD Ryzen 7 6800H (8 Nhân vật lý / 16 Luồng logic), 16 MB Shared L3 Cache, GCC 13.2.0 UCRT64 với OpenMP và AVX2/FMA.
+> **Nền tảng phần cứng thử nghiệm**: AMD Ryzen 7 6800H (8 Nhân vật lý / 16 Luồng logic), 16 MB Shared L3 Cache, OpenMP và AVX2/FMA. Bản hybrid đã được kiểm thử trên NVIDIA GeForce RTX 3050 Ti Laptop GPU với CUDA 13.5.
 
 ---
 
@@ -13,14 +13,14 @@
   ```powershell
   .\run.bat
   ```
-  *File này tự động kiểm tra và biên dịch (nếu chưa có file .exe), sau đó mở Menu điều khiển [0-6] để bạn chọn chạy thử nghiệm chuẩn [1], tùy chỉnh ma trận [2], so sánh thuật toán [3], v.v.*
+  *File này tự động phát hiện `nvcc`, biên dịch backend CUDA nếu có, sau đó mở menu điều khiển [0-5].*
 
 ### 1.2. Chạy trên Linux / WSL / Git Bash
 * Mở terminal và gõ:
   ```bash
   ./run_benchmarks.sh
   ```
-  *Tự động biên dịch qua Makefile, quét các kích thước ma trận $N \in \{512, 1024, 2048, 4096\}$, lặp 5 lần lấy trung bình và xuất file `results.csv`.*
+  *Tự động biên dịch qua Makefile, quét các kích thước ma trận được cấu hình trong script, lặp 5 lần lấy trung bình và xuất file kết quả.*
 Menu tương tác cung cấp 5 chức năng:
 * `[1]`: Chạy bộ thực nghiệm chuẩn ($N=512, 1024, 2048$) và xuất file Excel.
 * `[2]`: Thực nghiệm tùy chỉnh kích thước $N$ và số luồng CPU bất kỳ (hỗ trợ so sánh CPU và CPU + CUDA GPU).
@@ -63,8 +63,7 @@ d:/YayCode/CodeC/
 │   └── main.cpp          # CLI Parser, điều phối Benchmark K-lần lấy trung bình, Menu tương tác
 ├── Makefile              # Makefile chuẩn đa nền tảng (Linux, macOS, Windows)
 ├── run_benchmarks.sh     # Automation Bash Script cho Linux/WSL/Git Bash
-├── run_benchmarks.bat    # Automation Batch Script cho Windows
-└── BAO_CAO_TOAN_DIEN_THUC_NGHIEM.md # Toàn văn báo cáo khoa học lý thuyết & thực nghiệm
+└── .gitignore             # Loại trừ file nhị phân và kết quả tạm
 ```
 
 ### 2.2. Biên dịch bằng Makefile
@@ -106,6 +105,10 @@ make clean
 make CUDA_ENABLED=1
 ```
 
+Trên Windows, `run.bat` dùng MSVC Build Tools và biên dịch mã máy `sm_86`
+phù hợp với RTX 3050 Ti. Với GPU NVIDIA khác, hãy điều chỉnh tùy chọn
+`-arch` trong `run.bat` và `Makefile`.
+
 `run.bat` và `run_benchmarks.sh` tự động phát hiện `nvcc`. Khi CUDA khả
 dụng, benchmark sẽ build kernel CUDA; nếu không, chương trình build bản
 CPU-only và bỏ qua dòng CPU + GPU với thông báo rõ ràng. Khi GPU hoạt động,
@@ -128,7 +131,7 @@ memory.
 1. Thêm định danh thuật toán vào `enum class AlgorithmType` trong [include/common.h](file:///d:/YayCode/CodeC/include/common.h).
 2. Khai báo hàm trong [include/algorithms.h](file:///d:/YayCode/CodeC/include/algorithms.h).
 3. Hiện thực hóa trong [src/algorithms.cpp](file:///d:/YayCode/CodeC/src/algorithms.cpp) và thêm nhánh vào `run_algorithm()`.
-4. Biên dịch lại bằng lệnh `make` hoặc `build.bat`.
+4. Biên dịch lại bằng lệnh `make` hoặc `run.bat`.
 
 ---
 
