@@ -1,0 +1,9 @@
+# Build artifacts
+obj/
+*.exe
+
+# Temporary benchmark exports
+hybrid_check.csv
+hybrid_cuda_results.csv
+hybrid_cuda_benchmark.csv
+run_preview.csv
