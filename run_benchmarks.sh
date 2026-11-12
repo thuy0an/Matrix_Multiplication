@@ -24,14 +24,14 @@ echo ""
 echo -e "${YELLOW}[INFO] Đang biên dịch mã nguồn mới nhất...${NC}"
 if command -v make &> /dev/null; then
     if command -v nvcc &> /dev/null; then
-        make CUDA_ENABLED=1 all
+        make CUDA_ENABLED=1 CUDA_ARCH="${CUDA_ARCH}" all
     else
         make CUDA_ENABLED=0 all
     fi
 else
     echo -e "${YELLOW}[INFO] Biên dịch trực tiếp bằng g++...${NC}"
     if command -v nvcc &> /dev/null; then
-        nvcc -std=c++17 -O3 -Xcompiler -fopenmp -Iinclude \
+        nvcc -arch="${CUDA_ARCH}" -std=c++17 -O3 -Xcompiler -fopenmp -Iinclude \
             src/main.cpp src/matrix.cpp src/algorithms.cpp src/excel_export.cpp \
             src/cuda_backend.cu -o matmul_benchmark
     else
@@ -56,6 +56,7 @@ THREADS="1,2,4,8,16"
 RUNS=5
 OUTPUT_CSV="results.csv"
 OUTPUT_XLS="results.xls"
+CUDA_ARCH="${CUDA_ARCH:-sm_75}"
 
 echo -e "${BLUE}>>> CẤU HÌNH THỰC NGHIỆM TỰ ĐỘNG:${NC}"
 echo -e "  * Kích thước ma trận (N) : ${YELLOW}${SIZES}${NC}"

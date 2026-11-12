@@ -8,7 +8,8 @@ CXXFLAGS = -std=c++17 -O3 -fopenmp -mavx2 -mfma -Wall -Wextra
 INCLUDES = -Iinclude
 CUDA_ENABLED ?= 0
 NVCC = nvcc
-CUDAFLAGS = -std=c++17 -O3 -Xcompiler -fopenmp
+CUDA_ARCH ?= sm_75
+CUDAFLAGS = -arch=$(CUDA_ARCH) -std=c++17 -O3 -Xcompiler -fopenmp
 
 SRCDIR = src
 OBJDIR = obj
@@ -34,7 +35,7 @@ ifeq ($(OS),Windows_NT)
     TARGET = $(BINDIR)/matmul_benchmark.exe
     RM = del /Q /F
     MKDIR = if not exist $(OBJDIR) mkdir $(OBJDIR)
-    CUDAFLAGS = -arch=sm_86 -std=c++17 -O3 -Xcompiler /openmp:experimental
+    CUDAFLAGS = -arch=$(CUDA_ARCH) -std=c++17 -O3 -Xcompiler /openmp:experimental
 else
     TARGET = $(BINDIR)/matmul_benchmark
     RM = rm -rf
@@ -48,7 +49,7 @@ all: $(TARGET)
 $(TARGET): $(OBJS) $(CUDA_OBJS)
 	@echo [LINK] Tạo file thực thi: $(TARGET)
 ifeq ($(CUDA_ENABLED),1)
-	$(NVCC) $(CUDAFLAGS) $(OBJS) $(CUDA_OBJS) -Xcompiler -fopenmp -o $(TARGET)
+	$(NVCC) $(CUDAFLAGS) $(OBJS) $(CUDA_OBJS) -o $(TARGET)
 else
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET)
 endif
@@ -93,5 +94,5 @@ help:
 	@echo "  make            : Biên dịch chương trình (tạo $(TARGET))"
 	@echo "  make benchmark  : Biên dịch và chạy bộ benchmark tự động"
 	@echo "  make run        : Biên dịch và chạy chế độ tương tác Menu"
-	@echo "  make CUDA_ENABLED=1 : Bật backend CUDA + OpenMP (cần nvcc và GPU NVIDIA)"
+	@echo "  make CUDA_ENABLED=1 CUDA_ARCH=sm_75 : Bật CUDA (sm_75 mặc định cho NVIDIA T4)"
 	@echo "  make clean      : Xóa toàn bộ file object và binary"
