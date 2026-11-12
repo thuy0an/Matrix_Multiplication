@@ -8,8 +8,11 @@
 // Thông tin phần cứng CPU và bộ nhớ đệm (Cache)
 struct HardwareInfo {
     std::string cpu_name = "AMD Ryzen 7 6800H with Radeon Graphics";
+    std::string gpu_name = "Not detected";
     int physical_cores = 8;
     int logical_processors = 16;
+    int gpu_compute_major = 0;
+    int gpu_compute_minor = 0;
     int l1d_cache_kb = 32;       // 32 KB L1 Data per core
     int l2_cache_kb = 512;       // 512 KB L2 per core
     int l3_cache_kb = 16384;     // 16 MB L3 shared
@@ -22,7 +25,9 @@ enum class AlgorithmType {
     OMP_BASIC_PARALLEL,     // 2. Song song OpenMP cơ bản (Chia hàng không Tiling)
     OMP_TILED_L2_L3,        // 3. Song song OpenMP phân cấp L2 + L3 (Mục 3.6.2)
     OMP_TILED_L3_L1_BYPASS, // 4. Song song OpenMP L3 + L1 bỏ qua L2 (Mục 3.6.3)
-    HETEROGENEOUS_OMP_CUDA  // 5. Kết hợp CPU OpenMP và GPU CUDA theo dải hàng
+    HETEROGENEOUS_OMP_CUDA, // 5. Kết hợp CPU OpenMP và GPU CUDA theo dải hàng
+    CUDA_GLOBAL_MEMORY,     // 6. CUDA: mỗi thread đọc trực tiếp Global Memory
+    CUDA_SHARED_MEMORY_TILING // 7. CUDA: tái sử dụng tile trong Shared Memory
 };
 
 // Cấu trúc lưu trữ một dòng kết quả đo đạc thực nghiệm (Benchmark Parameter Record)
@@ -35,6 +40,7 @@ struct BenchmarkRecord {
     int l3_tile = 0;                        // Kích thước khối L3 (Tile3)
     int l2_tile = 0;                        // Kích thước khối L2 (Tile2)
     int l1_tile = 0;                        // Kích thước khối L1 (Tile1)
+    int cuda_tile = 0;                      // Kích thước tile CUDA (mỗi chiều)
     double time_sec = 0.0;                  // Thời gian thực thi (giây)
     double time_ms = 0.0;                   // Thời gian thực thi (mili-giây)
     uint64_t flops = 0;                     // Tổng số phép tính dấu chấm động (2 * N^3)

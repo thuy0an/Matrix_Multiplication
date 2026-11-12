@@ -157,6 +157,7 @@ bool ExcelExporter::exportToExcel(const std::string& filename,
     out << "   <Column ss:Width=\"80\"/>\n";   // L3 Tile
     out << "   <Column ss:Width=\"80\"/>\n";   // L2 Tile
     out << "   <Column ss:Width=\"80\"/>\n";   // L1 Tile
+    out << "   <Column ss:Width=\"90\"/>\n";   // CUDA block/tile
     out << "   <Column ss:Width=\"100\"/>\n";  // Thời gian (s)
     out << "   <Column ss:Width=\"100\"/>\n";  // Thời gian (ms)
     out << "   <Column ss:Width=\"120\"/>\n";  // Tổng phép tính FLOP
@@ -171,11 +172,16 @@ bool ExcelExporter::exportToExcel(const std::string& filename,
 
     // Tiêu đề báo cáo
     out << "   <Row ss:Height=\"28\">\n";
-    out << "    <Cell ss:MergeAcross=\"17\" ss:StyleID=\"TitleStyle\"><Data ss:Type=\"String\">BÁO CÁO THỰC NGHIỆM: NHÂN MA TRẬN SONG SONG TRÊN CPU TỐI ƯU CACHE L2/L3</Data></Cell>\n";
+    out << "    <Cell ss:MergeAcross=\"18\" ss:StyleID=\"TitleStyle\"><Data ss:Type=\"String\">BÁO CÁO THỰC NGHIỆM: NHÂN MA TRẬN SONG SONG CPU VÀ CUDA GPU</Data></Cell>\n";
     out << "   </Row>\n";
     out << "   <Row ss:Height=\"18\">\n";
-    out << "    <Cell ss:MergeAcross=\"17\" ss:StyleID=\"SubTitleStyle\"><Data ss:Type=\"String\">CPU: " 
-        << escape_xml(hw.cpu_name) << " | " << hw.physical_cores << " Cores / " << hw.logical_processors 
+    out << "    <Cell ss:MergeAcross=\"18\" ss:StyleID=\"SubTitleStyle\"><Data ss:Type=\"String\">CPU: "
+        << escape_xml(hw.cpu_name) << " | GPU: " << escape_xml(hw.gpu_name)
+        << " (Compute " << (hw.gpu_compute_major > 0
+                                ? std::to_string(hw.gpu_compute_major) + "." +
+                                      std::to_string(hw.gpu_compute_minor)
+                                : "N/A")
+        << ") | " << hw.physical_cores << " Cores / " << hw.logical_processors
         << " Threads | L2: " << hw.l2_cache_kb << "KB x " << hw.physical_cores << " | L3: " << (hw.l3_cache_kb / 1024) 
         << "MB Shared | Trình biên dịch: " << escape_xml(hw.compiler_info) << "</Data></Cell>\n";
     out << "   </Row>\n";
@@ -190,6 +196,7 @@ bool ExcelExporter::exportToExcel(const std::string& filename,
     out << "    <Cell ss:StyleID=\"HeaderStyle\"><Data ss:Type=\"String\">Khối L3 (Tile3)</Data></Cell>\n";
     out << "    <Cell ss:StyleID=\"HeaderStyle\"><Data ss:Type=\"String\">Khối L2 (Tile2)</Data></Cell>\n";
     out << "    <Cell ss:StyleID=\"HeaderStyle\"><Data ss:Type=\"String\">Khối L1 (Tile1)</Data></Cell>\n";
+    out << "    <Cell ss:StyleID=\"HeaderStyle\"><Data ss:Type=\"String\">CUDA Block/Tile</Data></Cell>\n";
     out << "    <Cell ss:StyleID=\"HeaderStyle\"><Data ss:Type=\"String\">Thời gian (s)</Data></Cell>\n";
     out << "    <Cell ss:StyleID=\"HeaderStyle\"><Data ss:Type=\"String\">Thời gian (ms)</Data></Cell>\n";
     out << "    <Cell ss:StyleID=\"HeaderStyle\"><Data ss:Type=\"String\">Tổng FLOP (2*N³)</Data></Cell>\n";
@@ -218,6 +225,9 @@ bool ExcelExporter::exportToExcel(const std::string& filename,
         else out << "    <Cell ss:StyleID=\"DataCenter\"><Data ss:Type=\"String\">-</Data></Cell>\n";
 
         if (r.l1_tile > 0) out << "    <Cell ss:StyleID=\"DataCenter\"><Data ss:Type=\"Number\">" << r.l1_tile << "</Data></Cell>\n";
+        else out << "    <Cell ss:StyleID=\"DataCenter\"><Data ss:Type=\"String\">-</Data></Cell>\n";
+
+        if (r.cuda_tile > 0) out << "    <Cell ss:StyleID=\"DataCenter\"><Data ss:Type=\"Number\">" << r.cuda_tile << "</Data></Cell>\n";
         else out << "    <Cell ss:StyleID=\"DataCenter\"><Data ss:Type=\"String\">-</Data></Cell>\n";
 
         out << "    <Cell ss:StyleID=\"DataTimeSec\"><Data ss:Type=\"Number\">" << std::fixed << std::setprecision(6) << r.time_sec << "</Data></Cell>\n";
@@ -273,7 +283,7 @@ bool ExcelExporter::exportToExcel(const std::string& filename,
     out << " </Worksheet>\n";
 
     // 4. WORKSHEET 3: THÔNG TIN PHẦN CỨNG & LÝ THUYẾT CACHE
-    out << " <Worksheet ss:Name=\"Thong_So_Kien_Truc_CPU\">\n";
+    out << " <Worksheet ss:Name=\"Thong_So_CPU_CUDA\">\n";
     out << "  <Table ss:DefaultRowHeight=\"20\">\n";
     out << "   <Column ss:Width=\"220\"/>\n";
     out << "   <Column ss:Width=\"320\"/>\n";
@@ -282,6 +292,8 @@ bool ExcelExporter::exportToExcel(const std::string& filename,
     out << "    <Cell ss:StyleID=\"HeaderStyle\"><Data ss:Type=\"String\">Giá trị chi tiết</Data></Cell>\n";
     out << "   </Row>\n";
     out << "   <Row><Cell ss:StyleID=\"DataText\"><Data ss:Type=\"String\">Bộ vi xử lý (CPU)</Data></Cell><Cell ss:StyleID=\"DataText\"><Data ss:Type=\"String\">" << escape_xml(hw.cpu_name) << "</Data></Cell></Row>\n";
+    out << "   <Row><Cell ss:StyleID=\"DataText\"><Data ss:Type=\"String\">Thiết bị CUDA (GPU)</Data></Cell><Cell ss:StyleID=\"DataText\"><Data ss:Type=\"String\">" << escape_xml(hw.gpu_name) << "</Data></Cell></Row>\n";
+    out << "   <Row><Cell ss:StyleID=\"DataText\"><Data ss:Type=\"String\">Compute capability</Data></Cell><Cell ss:StyleID=\"DataText\"><Data ss:Type=\"String\">" << (hw.gpu_compute_major > 0 ? std::to_string(hw.gpu_compute_major) + "." + std::to_string(hw.gpu_compute_minor) : "N/A") << "</Data></Cell></Row>\n";
     out << "   <Row><Cell ss:StyleID=\"DataText\"><Data ss:Type=\"String\">Số nhân vật lý (Physical Cores)</Data></Cell><Cell ss:StyleID=\"DataInteger\"><Data ss:Type=\"Number\">" << hw.physical_cores << "</Data></Cell></Row>\n";
     out << "   <Row><Cell ss:StyleID=\"DataText\"><Data ss:Type=\"String\">Số luồng logic (Logical Processors)</Data></Cell><Cell ss:StyleID=\"DataInteger\"><Data ss:Type=\"Number\">" << hw.logical_processors << "</Data></Cell></Row>\n";
     out << "   <Row><Cell ss:StyleID=\"DataText\"><Data ss:Type=\"String\">L1 Data Cache (mỗi nhân)</Data></Cell><Cell ss:StyleID=\"DataText\"><Data ss:Type=\"String\">" << hw.l1d_cache_kb << " KB (Khối Tile1 khuyến nghị: 32 - 64)</Data></Cell></Row>\n";
@@ -312,7 +324,7 @@ bool ExcelExporter::exportToCSV(const std::string& filename,
     out << "\xEF\xBB\xBF";
 
     // Tiêu đề cột
-    out << "STT,KichThuoc_N,SoLuong_Luong_q,ThuatToan,Khoi_L3_Tile,Khoi_L2_Tile,Khoi_L1_Tile,"
+    out << "STT,KichThuoc_N,SoLuong_Luong_q,ThuatToan,Khoi_L3_Tile,Khoi_L2_Tile,Khoi_L1_Tile,CUDA_Block_Tile,"
         << "ThoiGian_s,ThoiGian_ms,Tong_FLOP,HieuNang_GFLOPS,TangToc_Speedup,HieuSuat_Efficiency_Pct,"
         << "Amdahl_LyThuyet,Giam_Cache_Miss_Ratio,SaiSo_CucDai,KiemDinh,ThoiDiem\n";
 
@@ -324,6 +336,7 @@ bool ExcelExporter::exportToCSV(const std::string& filename,
             << r.l3_tile << ","
             << r.l2_tile << ","
             << r.l1_tile << ","
+            << r.cuda_tile << ","
             << std::fixed << std::setprecision(6) << r.time_sec << ","
             << std::fixed << std::setprecision(2) << r.time_ms << ","
             << r.flops << ","

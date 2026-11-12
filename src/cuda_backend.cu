@@ -45,11 +45,92 @@ __global__ void matrix_multiply_tiled(const double* a, const double* b,
         c[(row_offset + row) * n + col] = sum;
     }
 }
+
+__global__ void matrix_multiply_global(const double* a, const double* b,
+                                       double* c, int n) {
+    const int row = blockIdx.y * blockDim.y + threadIdx.y;
+    const int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row >= n || col >= n) {
+        return;
+    }
+
+    double sum = 0.0;
+    for (int k = 0; k < n; ++k) {
+        sum += a[row * n + k] * b[k * n + col];
+    }
+    c[row * n + col] = sum;
+}
+
+bool matmul_cuda_full(const double* a, const double* b, double* c, int n,
+                      int tile_size, bool use_shared_memory) {
+    if (!cuda_backend_available() || n <= 0) {
+        return false;
+    }
+    if (tile_size != 16 && tile_size != 32) {
+        throw std::invalid_argument("CUDA block/tile size must be 16 or 32");
+    }
+
+    const size_t matrix_bytes = static_cast<size_t>(n) * n * sizeof(double);
+    double* device_a = nullptr;
+    double* device_b = nullptr;
+    double* device_c = nullptr;
+
+    try {
+        check_cuda(cudaMalloc(&device_a, matrix_bytes), "cudaMalloc(d_A)");
+        check_cuda(cudaMalloc(&device_b, matrix_bytes), "cudaMalloc(d_B)");
+        check_cuda(cudaMalloc(&device_c, matrix_bytes), "cudaMalloc(d_C)");
+        check_cuda(cudaMemcpy(device_a, a, matrix_bytes, cudaMemcpyHostToDevice),
+                   "cudaMemcpy(A)");
+        check_cuda(cudaMemcpy(device_b, b, matrix_bytes, cudaMemcpyHostToDevice),
+                   "cudaMemcpy(B)");
+
+        const int block_size = tile_size;
+        const dim3 block(static_cast<unsigned>(block_size),
+                         static_cast<unsigned>(block_size));
+        const dim3 grid((n + block_size - 1) / block_size,
+                        (n + block_size - 1) / block_size);
+        if (use_shared_memory) {
+            const size_t shared_bytes =
+                2ULL * block_size * block_size * sizeof(double);
+            matrix_multiply_tiled<<<grid, block, shared_bytes>>>(
+                device_a, device_b, device_c, n, n, 0);
+            check_cuda(cudaGetLastError(), "matrix_multiply_tiled launch");
+        } else {
+            matrix_multiply_global<<<grid, block>>>(device_a, device_b, device_c,
+                                                    n);
+            check_cuda(cudaGetLastError(), "matrix_multiply_global launch");
+        }
+        check_cuda(cudaMemcpy(c, device_c, matrix_bytes, cudaMemcpyDeviceToHost),
+                   "cudaMemcpy(C)");
+    } catch (...) {
+        if (device_a != nullptr) cudaFree(device_a);
+        if (device_b != nullptr) cudaFree(device_b);
+        if (device_c != nullptr) cudaFree(device_c);
+        throw;
+    }
+
+    check_cuda(cudaFree(device_a), "cudaFree(d_A)");
+    check_cuda(cudaFree(device_b), "cudaFree(d_B)");
+    check_cuda(cudaFree(device_c), "cudaFree(d_C)");
+    return true;
+}
 }  // namespace
 
 bool cuda_backend_available() {
     int device_count = 0;
     return cudaGetDeviceCount(&device_count) == cudaSuccess && device_count > 0;
+}
+
+void cuda_backend_device_info(std::string& name, int& compute_major,
+                             int& compute_minor) {
+    int device = 0;
+    cudaDeviceProp properties{};
+    check_cuda(cudaGetDevice(&device), "cudaGetDevice");
+    check_cuda(cudaGetDeviceProperties(&properties, device),
+               "cudaGetDeviceProperties");
+    name = properties.name;
+    compute_major = properties.major;
+    compute_minor = properties.minor;
 }
 
 bool matmul_cuda_rows(const double* a, const double* b, double* c,
@@ -106,4 +187,14 @@ bool matmul_cuda_rows(const double* a, const double* b, double* c,
     cudaFree(device_b);
     cudaFree(device_c);
     return true;
+}
+
+bool matmul_cuda_global(const double* a, const double* b, double* c, int n,
+                        int block_size) {
+    return matmul_cuda_full(a, b, c, n, block_size, false);
+}
+
+bool matmul_cuda_shared(const double* a, const double* b, double* c, int n,
+                        int tile_size) {
+    return matmul_cuda_full(a, b, c, n, tile_size, true);
 }
