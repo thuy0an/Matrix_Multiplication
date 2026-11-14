@@ -188,8 +188,8 @@ void run_cuda_benchmarks(std::vector<BenchmarkRecord> &records, int &test_id,
         AlgorithmType::CUDA_GLOBAL_MEMORY,
         AlgorithmType::CUDA_SHARED_MEMORY_TILING};
     const char *names[] = {
-        "6. CUDA Global Memory",
-        "7. CUDA Shared Memory Tiling"};
+        "CUDA Global Memory",
+        "CUDA Shared Memory Tiling"};
 
     for (int i = 0; i < 2; ++i)
     {
